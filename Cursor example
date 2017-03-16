@@ -12,8 +12,8 @@ FETCH NEXT FROM Contact_Cursor INTO @ContactId
 
 WHILE @@FETCH_STATUS = 0   
 BEGIN   
-       SET @UsrPaySystemId = (select top(1) UsrPaySystemId from UsrPaymentInContact  where UsrContactId = @ContactId Order by ModifiedOn desc)  
-	   SET @UsrPaySystemAccount = (select top(1) UsrPaymentAccount from UsrPaymentInContact  where UsrContactId = @ContactId Order by ModifiedOn desc) 
+       SET @UsrPaySystemId = (select top(1) UsrPaySystemId from UsrPaymentInContact  where UsrContactId = @ContactId Order by CreatedOn desc)  
+	   SET @UsrPaySystemAccount = (select top(1) UsrPaymentAccount from UsrPaymentInContact  where UsrContactId = @ContactId Order by CreatedOn desc) 
        UPDATE Contact set UsrPaySystemId =  IsNULL(@UsrPaySystemId, null),
 					      UsrPaySystemAccount = IsNULL(@UsrPaySystemAccount, '')
 	   WHERE Id = @ContactId
