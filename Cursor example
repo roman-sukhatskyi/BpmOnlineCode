@@ -1,0 +1,24 @@
+DECLARE @ContactId [uniqueidentifier]
+DECLARE @UsrPaySystemId [uniqueidentifier]
+DECLARE @UsrPaySystemAccount VARCHAR(250)
+
+DECLARE Contact_Cursor CURSOR FOR  
+SELECT Id 
+FROM Contact as c
+
+
+OPEN Contact_Cursor   
+FETCH NEXT FROM Contact_Cursor INTO @ContactId
+
+WHILE @@FETCH_STATUS = 0   
+BEGIN   
+       SET @UsrPaySystemId = (select top(1) UsrPaySystemId from UsrPaymentInContact  where UsrContactId = @ContactId Order by ModifiedOn desc)  
+	   SET @UsrPaySystemAccount = (select top(1) UsrPaymentAccount from UsrPaymentInContact  where UsrContactId = @ContactId Order by ModifiedOn desc) 
+       UPDATE Contact set UsrPaySystemId =  IsNULL(@UsrPaySystemId, null),
+					      UsrPaySystemAccount = IsNULL(@UsrPaySystemAccount, '')
+	   WHERE Id = @ContactId
+	   FETCH NEXT FROM Contact_Cursor INTO @ContactId     
+END   
+
+CLOSE Contact_Cursor   
+DEALLOCATE Contact_Cursor
