@@ -1,0 +1,43 @@
+BEGIN
+	DECLARE @data xml = (
+		replace(
+			(
+				select  top 1 
+					convert(varchar(max), CONVERT(varbinary(max), Data))
+				FROM [File]
+				WHERE Id = 'CF7018A8-5F67-4DAC-AD7C-0EE9A59D14C1'
+			), 
+			'&#x03;', 
+			''
+		)
+	);
+
+	SELECT 
+		row.value('./BuyerID[1]', 'nvarchar(250)') as MemberIdPL,   
+		row.value('./lastName[1]', 'nvarchar(250)') as Surname,
+		row.value('./firstName[1]', 'nvarchar(250)') as GivenName,
+		row.value('./middleName[1]', 'nvarchar(250)') as MiddleName,
+		row.value('./sex[1]', 'nvarchar(250)') as Gender,
+		row.value('./birthDate[1]', 'nvarchar(250)') as Birthday,
+		row.value('./cellphone[1]', 'nvarchar(250)') as Phone,
+		row.value('./email[1]', 'nvarchar(250)') as Email,
+		row.value('./addrCity[1]', 'nvarchar(250)') as City,
+		row.value('./addrStreet[1]', 'nvarchar(250)') as Street,
+		row.value('./addrBuilding[1]', 'nvarchar(250)') as House,
+		row.value('./addrHousing[1]', 'nvarchar(250)') as Corps,
+		row.value('./addrFlat[1]', 'nvarchar(250)') as Apartment,
+		row.value('./cardNum[1]', 'nvarchar(250)') as NumberActingCard,
+		row.value('./spendAllowed[1]', 'nvarchar(250)') as StatusWriteoffBonuses,
+		row.value('./state[1]', 'nvarchar(250)') as StatusCard,
+		row.value('./dateRegistered[1]', 'nvarchar(250)') as DateRegistrationCard,
+		row.value('./CardType[1]', 'nvarchar(250)') as CardType,
+		row.value('./activeBalance[1]', 'nvarchar(250)') as BalanceTrade,
+		row.value('./sendEmail[1]', 'nvarchar(250)') as AcceptanceEmailPl,
+		row.value('./sendSMS[1]', 'nvarchar(250)') as AcceptanceSMSPl,
+		row.value('./KM[1]', 'nvarchar(250)') as SymptomParticipationClub,
+		row.value('./sendEmailKM[1]', 'nvarchar(250)') as AcceptanceSMSKm,
+		row.value('./sendSMSlKM[1]', 'nvarchar(250)') as AcceptanceEmailKm,
+		row.value('./BalansPurse[1]', 'nvarchar(250)') as WalletBalance
+		INTO TempTableCsv
+	FROM @data.nodes('./Buyers/row') col(row) 
+END
