@@ -1,6 +1,4 @@
-select count(*) from Contact --5216178
-
---Ð’Ð¸Ð´Ð°Ð»ÐµÐ½Ð½Ñ Ð²ÑÑ–Ñ… ÐºÐ¾Ð½Ñ‚Ð°ÐºÑ‚Ñ–Ð² ÑÐºÑ– Ñ” Ð´ÑƒÐ±Ð»ÑÐ¼Ð¸ Ñ– Ð½ÐµÐ¼Ð°ÑŽÑ‚ÑŒ Ð·Ð²â€™ÑÐ·ÐºÑƒ Ð½Ð° Case
+--Âèäàëåííÿ âñ³õ êîíòàêò³â ÿê³ º äóáëÿìè ³ íåìàþòü çâ’ÿçêó íà Case
 
 select t.d from (
 	select ROW_NUMBER ( ) OVER ( PARTITION BY c.UsrMemberIdPL order by id)   as d
@@ -8,14 +6,14 @@ select t.d from (
 	where not exists (select * from [Case] as c1 where c1.ContactId = c.id) 
 ) as t
 where t.d > 1
---Ð²Ð¸Ð´Ð°Ð»ÐµÐ½Ð½Ñ Ð²Ð°Ñ€Ñ–Ð°Ð½Ñ‚ 1 
+--âèäàëåííÿ âàð³àíò 1 
 delete t from (
 	select ROW_NUMBER ( ) OVER ( PARTITION BY c.UsrMemberIdPL order by id)   as d
 	from Contact as c
 	where not exists (select * from [Case] as c1 where c1.ContactId = c.id) 
 ) as t
 where t.d > 1
---Ð²Ð¸Ð´Ð°Ð»ÐµÐ½Ð½Ñ Ð²Ð°Ñ€Ñ–Ð°Ð½Ñ‚ 2 
+--âèäàëåííÿ âàð³àíò 2 
 with a as(
 	select t.d from (
 		select ROW_NUMBER ( ) OVER ( PARTITION BY c.UsrMemberIdPL order by id)   as d
@@ -25,11 +23,11 @@ with a as(
 	where t.d > 1
 )
 delete from a 
---Ð’Ð¸Ð´Ð°Ð»ÐµÐ½Ð½Ñ Ð²ÑÑ–Ñ… ÐºÐ¾Ð½Ñ‚Ð°ÐºÑ‚Ñ–Ð² Ñƒ ÑÐºÐ¸Ñ… Ð½ÐµÐ¼Ð°Ñ” Ð·Ð²â€™ÑÐ·ÐºÑƒ Ð½Ð° ÐžÐ±Ñ€Ð°Ñ‰ÐµÐ½Ð¸Ðµ
+--Âèäàëåííÿ âñ³õ êîíòàêò³â ó ÿêèõ íåìàº çâ’ÿçêó íà Îáðàùåíèå
 select c.Name, c.UsrMemberIdPL
 from Contact as c
 where not exists (select * from [Case] as c1 where c1.ContactId = c.id) 
---Ð²Ð¸Ð´Ð°Ð»ÐµÐ½Ð½Ñ
+--âèäàëåííÿ
 with a as(
 	select c.Name, c.UsrMemberIdPL
 	from Contact as c
@@ -37,9 +35,3 @@ with a as(
 ) 
 delete from a 
 
-select count(*) from (
-		select ROW_NUMBER ( ) OVER ( PARTITION BY c.UsrMemberIdPL order by id)   as d
-		from Contact as c
-		where not exists (select * from [Case] as c1 where c1.ContactId = c.id) 
-	) as t
-	where t.d > 1  

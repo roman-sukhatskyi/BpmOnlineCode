@@ -1,0 +1,1 @@
+exec tsp_UploadFromFtp 'D:\RUSH_Catalogs_2017_04_20\RUSH_Buyers_2017_04_04.csv', 'D:\RUSH_Catalogs_2017_04_20\RUSH_InActivCards_2017_04_04.csv', 'D:\RUSH_Catalogs_2017_04_20\RUSH_Ours_2017_04_04.csv', 'D:\RUSH_Catalogs_2017_04_20\RUSH_Schedule_2017_04_04.csv', -1, ''

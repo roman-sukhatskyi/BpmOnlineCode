@@ -21,69 +21,124 @@
     using Column = Terrasoft.Core.DB.Column;
     using System.Globalization;
     using System.Text.RegularExpressions;
-
+    
     [ServiceContract]
     [AspNetCompatibilityRequirements(RequirementsMode = AspNetCompatibilityRequirementsMode.Required)]
     public class UsrUploadFromFTP
     {
     	public AppConnection appConnection;
         public UserConnection userConnection;
+        
 		Response responseFtp = new Response();
+		MergeReturn mergeReturn = new MergeReturn();
 		
 		public string ftpHost = "";
 		public string ftpUserName = "";
 		public string ftpPassword = "";
 		public string ftpFolder = "";
-
-        private const string fileName = "XML_RUSH_Catalogs_";
+        public string pathToFolderInSQL = "";
 		
-    	public UsrUploadFromFTP()
+        private const string fileName = "RUSH_Catalogs_";
+		
+    	public UsrUploadFromFTP(UserConnection userConnection)
     	{
-    		appConnection = HttpContext.Current.Application["AppConnection"] as AppConnection;
-        	userConnection = appConnection.SystemUserConnection;
-        	
+    		//appConnection = HttpContext.Current.Application["AppConnection"] as AppConnection;
+        	//userConnection = appConnection.SystemUserConnection;
+        	this.userConnection = userConnection;
         	ftpHost = Convert.ToString(Terrasoft.Core.Configuration.SysSettings.GetValue(userConnection, "UsrFTPHost"));
         	ftpUserName = Convert.ToString(Terrasoft.Core.Configuration.SysSettings.GetValue(userConnection, "UsrFTPUserName"));
         	ftpPassword = Convert.ToString(Terrasoft.Core.Configuration.SysSettings.GetValue(userConnection, "UsrFTPPassword"));
         	ftpFolder = Convert.ToString(Terrasoft.Core.Configuration.SysSettings.GetValue(userConnection, "UsrPathToFolderIN"));
-    	}
+            pathToFolderInSQL = Path.GetTempPath(); //Convert.ToString(Terrasoft.Core.Configuration.SysSettings.GetValue(userConnection, "UsrPathToFolderInSQL"));
+        }
     	
         [WebInvoke(Method = "POST", BodyStyle = WebMessageBodyStyle.Wrapped,
         RequestFormat = WebMessageFormat.Json, ResponseFormat = WebMessageFormat.Json)]
         public void UploadFromFTP()
         {
+        	var pathRUSH_Buyers = "";
+			var pathRUSH_InActivCards = "";
+			var pathRUSH_Ours = "";
+			var pathRUSH_Prods = "";
+			var pathRUSH_Schedule = "";
+			//var filePathRegex = new List<Regex>();
         	try
         	{
+        		IsDirectoryExist(pathToFolderInSQL);
             	List<string> archiveFiles = GetArchiveListDirectoryContentsWithFTP(ftpHost, ftpUserName, ftpPassword, ftpFolder);
             	var archiveFileName = GetFileName(archiveFiles, fileName);
-            	var responseDownload = GetDownloadArchiveFileWithFTP(ftpHost, ftpUserName, ftpPassword, ftpFolder, archiveFileName);
+            	var responseDownload = GetDownloadArchiveFileWithFTP(ftpHost, ftpUserName, ftpPassword, ftpFolder, archiveFileName, pathToFolderInSQL);
                 if (responseDownload.Success && responseDownload.Path != String.Empty)
                 {
-                    var unZipPatch = UnZipFile(responseDownload.Path);
+                    var unZipPatch = UnZipFile(responseDownload.Path, pathToFolderInSQL);
                     if (unZipPatch != String.Empty)
                     {
-                        byte[] bytes = OpenBuyersWitchDirectory(unZipPatch);
-                        var fileId = InsertFileInBlob(bytes);
-                        /*if(fileId != Guid.Empty)
-                        {
-                        	var storedProcedure = new StoredProcedure(userConnection, "tsp_ProcedureName");
-							storedProcedure.WithParameter("FileId", fileId);
-							storedProcedure.Execute();
-                        }*/
+						var pathFiles = GetPathBuyersWitchDirectory(unZipPatch);
+						if(pathFiles.Count != 0)
+						{
+							foreach (var currentPathFile in pathFiles)
+				            {
+				                if (Regex.IsMatch(currentPathFile, @"RUSH_Buyers"))
+				                {
+				                    pathRUSH_Buyers = currentPathFile;
+				                }
+				                if(Regex.IsMatch(currentPathFile, @"RUSH_InActivCards"))
+				                {
+				                	pathRUSH_InActivCards = currentPathFile;
+				                }
+				                if(Regex.IsMatch(currentPathFile, @"RUSH_Ours"))
+				                {
+				                	pathRUSH_Ours = currentPathFile;
+				                }
+				                if(Regex.IsMatch(currentPathFile, @"RUSH_Schedule"))
+				                {
+				                	pathRUSH_Schedule = currentPathFile;
+				                }
+				                if(Regex.IsMatch(currentPathFile, @"RUSH_Prods"))
+				                {
+				                	pathRUSH_Prods = currentPathFile;
+				                }
+				            }
+				            var logPathMessage = "Шляхи до файлів: \n" + "1. " + pathRUSH_Buyers + "\n" + "2. " + pathRUSH_InActivCards + "\n" + "3. " + pathRUSH_Ours + "\n" + "4. " + pathRUSH_Schedule + "\n" + "5. " + pathRUSH_Prods; 
+				            InsertErrorMessage(logPathMessage);
+							ExecutionStpUploadBayersFromFtp(pathRUSH_Buyers, pathRUSH_InActivCards, pathRUSH_Ours, pathRUSH_Schedule, pathRUSH_Prods);
+						}
                     }
                 }
                 else
                 {
                     InsertErrorMessage(responseDownload.Error);
                 }
-            
         	}
         	catch (Exception ex)
         	{
         		var errorMessage = ex.Message;
+        		InsertErrorMessage(errorMessage);
         	}
         }
-
+        
+        public void IsDirectoryExist(string pathToFolderInSQL) 
+        {
+        	var pathToFTPImportDirectory = pathToFolderInSQL + @"FTPImport";
+            bool directoryExists = Directory.Exists(pathToFTPImportDirectory);
+            if (directoryExists)
+            {
+                Directory.Delete(pathToFTPImportDirectory, true);
+            }
+        }
+        
+		public void ExecutionStpUploadBayersFromFtp (string pathToBayersFile, string pathToInActivCardsFile, string pathToOursFile, string pathToScheduleFile, string pathToProdsFile) 
+		{
+			var uploadBuyersFromFtp = new StoredProcedure(userConnection, "tsp_UploadFromFtp");
+				uploadBuyersFromFtp.WithParameter("PathToBayersFile", pathToBayersFile);
+				uploadBuyersFromFtp.WithParameter("PathInActivCardsFile", pathToInActivCardsFile);
+				uploadBuyersFromFtp.WithParameter("PathOursFile", pathToOursFile);
+				uploadBuyersFromFtp.WithParameter("PathSheduleFile", pathToScheduleFile);
+				uploadBuyersFromFtp.WithParameter("PathProdsFile", pathToProdsFile);
+			uploadBuyersFromFtp.PackageName = "ITS";
+			uploadBuyersFromFtp.Execute();
+		}
+		
         public static List<string> GetArchiveListDirectoryContentsWithFTP(string ftpHost, string ftpUserName, string ftpPassword, string ftpFolder)
         {
         	List<string> filesFtp = new List<string>();
@@ -124,10 +179,9 @@
             return fileName = fileName + maxDate.ToString("yyyy_MM_dd") + ".zip";
         }
 
-        public Response GetDownloadArchiveFileWithFTP(string ftpHost, string ftpUserName, string ftpPassword, string ftpFolder, string archiveFileName)
-        {
-            string tempPeth = Path.GetTempPath();
-            string pathZip = System.IO.Path.Combine(tempPeth, "FTPImport\\" + "Zip\\");
+        public Response GetDownloadArchiveFileWithFTP(string ftpHost, string ftpUserName, string ftpPassword, string ftpFolder, string archiveFileName, string pathToFolderInSQL)
+        {  
+            string pathZip = System.IO.Path.Combine(pathToFolderInSQL, "FTPImport\\" + "Zip\\");
             System.IO.Directory.CreateDirectory(pathZip);
             string savePathFile = pathZip + archiveFileName;
             try
@@ -154,62 +208,43 @@
             return responseFtp;
         }
 		
-		public string UnZipFile(string pathUnZipFolder)
+		public string UnZipFile(string pathUnZipFolder, string pathToFolderInSQL)
         {
             string tempPeth = Path.GetTempPath();
-            string pathUnZip = System.IO.Path.Combine(tempPeth, "FTPImport\\" + "UnZip\\");
+            string pathUnZip = System.IO.Path.Combine(pathToFolderInSQL, "FTPImport\\" + "UnZip\\");
             System.IO.Directory.CreateDirectory(pathUnZip); 
-            string removePathFolder = (pathUnZipFolder.Remove(pathUnZipFolder.LastIndexOf("\\XML")));
+            string removePathFolder = (pathUnZipFolder.Remove(pathUnZipFolder.LastIndexOf("\\RUSH")));
             ZipFile.ExtractToDirectory(pathUnZipFolder, pathUnZip);
             Directory.Delete(removePathFolder, true);
             return pathUnZip;
         }
         
-        public byte[] OpenBuyersWitchDirectory(string pathUnZip)
+        public List<string> GetPathBuyersWitchDirectory(string pathUnZip)
         {
             string filePath = "";
             string[] fileEntries = Directory.GetFiles(pathUnZip);
-            List<string> currentFile = new List<string>();
-            var regex = new Regex(@"RUSH_Buyers");
+            var pathtFilesFinaly = new List<string>();
+            var avaiblesFileRegex = new List<Regex>();
+            avaiblesFileRegex.Add(new Regex(@"RUSH_Buyers"));
+            avaiblesFileRegex.Add(new Regex(@"RUSH_InActivCards"));
+            avaiblesFileRegex.Add(new Regex(@"RUSH_Ours"));
+            avaiblesFileRegex.Add(new Regex(@"RUSH_Prods"));
+            avaiblesFileRegex.Add(new Regex(@"RUSH_Schedule"));
             foreach (string fileName in fileEntries)
             {
-                foreach (Match m in regex.Matches(fileName))
+                if (avaiblesFileRegex.Any(w => w.IsMatch(fileName)))
                 {
-                    currentFile.Add(fileName);
-                    filePath = fileName;
+                    pathtFilesFinaly.Add(fileName);
                 }
             }
-            byte[] bytes = System.IO.File.ReadAllBytes(filePath);
-            
-            string removePathFolder = (filePath.Remove(filePath.LastIndexOf("\\UnZip")));
-            Directory.Delete(removePathFolder, true);
-            
-            return bytes;
-        }
-        
-        public Guid InsertFileInBlob(byte[] fileBlob)
-        {
-        	var date = DateTime.Now.ToString("yyyy_MM_dd");
-        	var size = fileBlob.Length / 1024;
-        	var name = "RUSH_Buyers_" + date + ".xml";
-			var Id = Guid.Empty;
-			
-			var fileEntity = userConnection.EntitySchemaManager.GetInstanceByName("File").CreateEntity(userConnection);
-			fileEntity.FetchFromDB("Id", Id);
-			fileEntity.SetDefColumnValues();
-            fileEntity.SetColumnValue("Name", name);
-            fileEntity.SetColumnValue("Data", fileBlob);
-            fileEntity.SetColumnValue("TypeId", UsrConstantsServer.FileType.File);
-            fileEntity.SetColumnValue("Size", size);
-            fileEntity.Save();
-            
-            return fileEntity.GetTypedColumnValue<Guid>("Id");;
+            return pathtFilesFinaly;
         }
         
         #region FtpLog
         public void InsertErrorMessage(string logMessage)
         {
         	Insert insert = new Insert(userConnection).Into("UsrIntegrationLogFtp")
+        		.Set("UsrName", Column.Parameter("ServiceLog"))
                 .Set("UsrErrorDescription", Column.Parameter(logMessage));
             insert.Execute();
         }
@@ -222,7 +257,17 @@
         public string Error { get; set; }
         public string Path { get; set; }
     }
+    
+	public class MergeReturn 
+	{
+		public int Result { get; set; }
+		public string Description { get; set; }
+	}
 }
+
+
+
+
 
 
 
